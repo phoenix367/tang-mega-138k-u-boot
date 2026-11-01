@@ -10,8 +10,10 @@ top of it.
 
 - `configs/ae350_rv32_tang_mega_138k_defconfig` — the working configuration: XIP from SPI
   flash, single hart (no SMP), no EFI loader, env nowhere (the SoC has no `atcspi200` SPI
-  master, only the XIP flash interface), `bootcmd` = gunzip the OpenSBI+kernel payload from
-  flash and `sdboot`.
+  master, only the XIP flash interface), `bootcmd` = LZMA-decompress the OpenSBI+kernel
+  payload from flash (`lzmadec`; the 16 MB malloc heap holds its 8 MiB dictionary) and
+  `sdboot`. LZMA makes the payload ~15 % smaller than gzip in the 8 MB flash region, for
+  ~5 s more at boot.
 - `arch/riscv/dts/ae350_32.dts`, `ae350-u-boot.dtsi` — one hart, `rv32imac`, 50 MHz
   machine timer and APB clocks, DDR3 at 0, mainline-only nodes (virtio, CFI flash, SPI
   master, MAC, LCD, sound) removed.
