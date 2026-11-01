@@ -83,6 +83,9 @@
 #include <config_distro_bootcmd.h>
 
 #define CFG_EXTRA_ENV_SETTINGS	\
+				"autostart=yes\0" \
+				"payloadaddr=0x80200000\0" \
+				"bootpayload=bootm ${payloadaddr}\0" \
 				"initrd_high=0xffffffffffffffff\0" \
 				"kernel_addr_r=0x00600000\0" \
 				"kernel_comp_addr_r=0x04600000\0" \

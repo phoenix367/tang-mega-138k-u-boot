@@ -33,10 +33,25 @@ void harts_early_init(void)
 		unsigned long mcache_ctl_val = csr_read(CSR_MCACHE_CTL);
 		unsigned long mmisc_ctl_val = csr_read(CSR_MMISC_CTL);
 
-		mcache_ctl_val |= (MCACHE_CTL_CCTL_SUEN | \
-				MCACHE_CTL_IC_PREFETCH_EN | MCACHE_CTL_DC_PREFETCH_EN | \
+		/*
+		 * Gowin AE350 (Andes A25): cache ECC (IC/DC_ECCEN) BREAKS DDR AMO
+		 * on this gateware (the cache SRAM has no ECC) - amoswap then hangs.
+		 * The SDK BSP runs with mcache_ctl=0x3 (only I/D enable). Clear ECC,
+		 * prefetch and write-around so atomics work on DDR.
+		 *
+		 * Keep CCTL_SUEN SET (not cleared): it enables S/U-mode access to the
+		 * AndeStar V5 CCTL cache-control CSRs (ucctlbeginaddr 0x80b /
+		 * ucctlcommand 0x80c) so the S-mode kernel can do explicit L1 cache
+		 * maintenance (e.g. non-coherent DMA wb/inval). It is unrelated to the
+		 * AMO hang (that is DC_COHEN/no-coherence-manager); without it an S-mode
+		 * csrw 0x80b traps as an illegal instruction.
+		 */
+		mcache_ctl_val &= ~(MCACHE_CTL_IC_PREFETCH_EN | MCACHE_CTL_DC_PREFETCH_EN | \
 				MCACHE_CTL_DC_WAROUND_EN | MCACHE_CTL_L2C_WAROUND_EN | \
 				MCACHE_CTL_IC_ECCEN | MCACHE_CTL_DC_ECCEN | MCACHE_CTL_TLB_ECCEN);
+
+		/* Expose the CCTL cache-control registers to S/U mode (Linux). */
+		mcache_ctl_val |= MCACHE_CTL_CCTL_SUEN;
 
 		if (!CONFIG_IS_ENABLED(SYS_ICACHE_OFF))
 			mcache_ctl_val |= MCACHE_CTL_IC_EN;
