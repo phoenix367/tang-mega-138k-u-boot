@@ -19,6 +19,18 @@ CONFIG_DISTRO_DEFAULTS=y
 CONFIG_AUTOBOOT_KEYED=y
 CONFIG_AUTOBOOT_PROMPT="Autoboot in %d s, type uboot to stop.  "
 CONFIG_AUTOBOOT_STOP_STR="uboot"
+# boot splash on the Dock's LCD: gowin_lcd.c + the BMP appended to the XIP image at 0x100000
+CONFIG_VIDEO=y
+CONFIG_VIDEO_GOWIN_LCD=y
+# CONFIG_VIDEO_LOGO is not set
+CONFIG_BMP=y
+CONFIG_CMD_BMP=y
+CONFIG_SPLASH_SCREEN_ALIGN=y
+CONFIG_SYS_CONSOLE_IS_IN_ENV=y
+# shown from preboot (before the countdown): with the console pinned to serial by the env,
+# stdio init does not probe video devices, so the SPLASH_SCREEN hook would find none
+CONFIG_USE_PREBOOT=y
+CONFIG_PREBOOT="bmp display ${splashimage} m m"
 CONFIG_BOOTCOMMAND="lzmadec 0x80200000 0 0x2000000; sdboot 0"
 CONFIG_SYS_PBSIZE=1050
 CONFIG_DISPLAY_CPUINFO=y

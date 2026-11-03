@@ -983,6 +983,14 @@ config VIDEO_DW_MIPI_DSI
 	  rather requires a SoC-specific glue driver to call it), it
 	  can not be enabled from the configuration menu.
 
+config VIDEO_GOWIN_LCD
+	bool "Gowin AE350 demo RGB LCD scan-out core (Tang Mega 138K Pro)"
+	depends on VIDEO
+	help
+	  Fixed-timing RGB565 framebuffer scanner in the FPGA fabric of the
+	  Tang Mega 138K Pro demo gateware (registers at 0xE8001000). The
+	  framebuffer address comes from the device tree ("framebuffer").
+
 config VIDEO_SIMPLE
 	bool "Simple display driver for preconfigured display"
 	imply VIDEO_DAMAGE

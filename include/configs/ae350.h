@@ -84,6 +84,10 @@
 
 #define CFG_EXTRA_ENV_SETTINGS	\
 				"autostart=yes\0" \
+				"stdin=serial\0" \
+				"stdout=serial\0" \
+				"stderr=serial\0" \
+				"splashimage=0x80100000\0" \
 				"payloadaddr=0x80200000\0" \
 				"bootpayload=bootm ${payloadaddr}\0" \
 				"initrd_high=0xffffffffffffffff\0" \

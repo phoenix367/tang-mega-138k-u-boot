@@ -104,6 +104,20 @@
 			interrupts-extended = <&CPU0_intc 7>;
 			reg = <0xe6000000 0x100000>;
 		};
+		/* RGB LCD scan-out core (src/rtl/video in the gateware repo): the boot
+		 * splash. The framebuffer is at 224 MB, below U-Boot's relocation area
+		 * and reserved in the Linux DT until gowin-lcdfb takes over. */
+		lcd0: lcd@e8001000 {
+			compatible = "gowin,ae350-lcd";
+			reg = <0xe8001000 0x100>;
+			width = <800>;
+			height = <480>;
+			hfront-porch = <210>;
+			hback-porch = <182>;
+			vfront-porch = <45>;
+			vback-porch = <8>;
+			framebuffer = <0x0e000000>;
+		};
 	};
 
 	spiclk: spiclk {
