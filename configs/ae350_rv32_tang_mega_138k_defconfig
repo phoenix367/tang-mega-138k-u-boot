@@ -15,6 +15,10 @@ CONFIG_SYS_MONITOR_BASE=0x88000000
 # CONFIG_EFI_LOADER is not set
 CONFIG_FIT=y
 CONFIG_DISTRO_DEFAULTS=y
+# a floating UART RX (adapter unplugged) must not stop autoboot: only the string "uboot" does
+CONFIG_AUTOBOOT_KEYED=y
+CONFIG_AUTOBOOT_PROMPT="Autoboot in %d s, type uboot to stop.  "
+CONFIG_AUTOBOOT_STOP_STR="uboot"
 CONFIG_BOOTCOMMAND="lzmadec 0x80200000 0 0x2000000; sdboot 0"
 CONFIG_SYS_PBSIZE=1050
 CONFIG_DISPLAY_CPUINFO=y
