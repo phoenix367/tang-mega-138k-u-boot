@@ -82,6 +82,7 @@ struct nds_spi_slave {
 	unsigned int	mode;
 	u8		num_cs;
 	unsigned int	mtiming;
+	u8		sclk_div;	/* divider for freq; mtiming is restored after each transfer */
 	size_t		cmd_len;
 	u8		cmd_buf[16];
 	size_t		data_len;
@@ -108,6 +109,7 @@ static int __atcspi200_spi_set_speed(struct nds_spi_slave *ns)
 	}
 
 	tm |= div;
+	ns->sclk_div = div;
 	ns->regs->timing = tm;
 
 	return 0;
@@ -157,6 +159,10 @@ static int __atcspi200_spi_start(struct nds_spi_slave *ns)
 		tc |= (ns->tran_len-1) << RCNT_OFFSET;
 
 	ns->regs->tctrl = tc;
+	/* __atcspi200_spi_stop() puts the timing found at probe back (on SPI1 a
+	 * memory-mapped flash may depend on it), so apply the requested speed here,
+	 * for every transfer, or all but the first run at the reset divider. */
+	ns->regs->timing = (ns->mtiming & ~SCLK_DIV_MASK) | ns->sclk_div;
 	ns->regs->cmd = 1;
 
 	for (i=0;i<ns->cmd_len;i++)
@@ -371,6 +377,7 @@ static int atcspi200_spi_probe(struct udevice *bus)
 	ns->to = SPI_TIMEOUT;
 	ns->max_transfer_length = MAX_TRANSFER_LEN;
 	ns->mtiming = ns->regs->timing;
+	ns->sclk_div = ns->mtiming & SCLK_DIV_MASK;
 	atcspi200_spi_get_clk(bus);
 
 	return 0;
