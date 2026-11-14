@@ -124,7 +124,11 @@
 	spiclk: spiclk {
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
-		clock-frequency = <50000000>;	/* ATCSPI200 input = APB 50 MHz */
+		/* Input clock of SPI2's ATCSPI200: not the 50 MHz APB clock but about
+		 * 23 MHz, measured on Build 73 (reads at SCLK dividers 3 / 1 / 0 /
+		 * undivided: 0.36 / 0.72 / 1.23 / 2.37 MB/s).  Nominal 25 MHz, as in
+		 * the Linux DT: a 25 MHz spi-max-frequency selects the undivided clock. */
+		clock-frequency = <25000000>;
 	};
 
 	/* The SoM's second SPI NOR (U7, 128 Mbit, on ordinary bank-3 pins) behind the
@@ -141,7 +145,7 @@
 		flash@0 {
 			compatible = "jedec,spi-nor";
 			reg = <0>;
-			spi-max-frequency = <25000000>;	/* SPI clock 50 MHz / 2 */
+			spi-max-frequency = <25000000>;	/* = the input clock, ~23 MHz real */
 		};
 	};
 

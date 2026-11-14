@@ -173,12 +173,24 @@ static int __atcspi200_spi_start(struct nds_spi_slave *ns)
 
 static int __atcspi200_spi_stop(struct nds_spi_slave *ns)
 {
-	ns->regs->timing = ns->mtiming;
-	while ((ns->regs->status & SPIBSY)&&(ns->to--))
-		if (!ns->to)
-			return -EINVAL;
+	int to = SPI_TIMEOUT, ret = 0;
 
-	return 0;
+	/*
+	 * Wait for the end of the transfer before the timing of probe time is
+	 * put back: a write leaves the loop when its last byte is queued, and a
+	 * divider changed while bytes still shift out garbles them (Write Enable,
+	 * Sector Erase and page data at the undivided clock).  The timeout is
+	 * per call: ns->to is never reset, a long write used it up.
+	 */
+	while (ns->regs->status & SPIBSY) {
+		if (!to--) {
+			ret = -EINVAL;
+			break;
+		}
+	}
+	ns->regs->timing = ns->mtiming;
+
+	return ret;
 }
 
 static void __nspi_espi_tx(struct nds_spi_slave *ns, const void *dout)
@@ -200,12 +212,10 @@ static int __atcspi200_spi_xfer(struct nds_spi_slave *ns,
 		const void *dout = NULL;
 		void *din = NULL;
 		int num_blks, num_chunks, max_tran_len, tran_len;
-		int num_bytes;
-		u8 *cmd_buf = ns->cmd_buf;
+			u8 *cmd_buf = ns->cmd_buf;
 		size_t cmd_len = ns->cmd_len;
 		unsigned long data_len = bitlen / 8;
-		int rf_cnt;
-		int ret = 0, timeout = 0;
+			int ret = 0, timeout = 0;
 
 		max_tran_len = ns->max_transfer_length;
 		switch (flags) {
@@ -246,10 +256,7 @@ static int __atcspi200_spi_xfer(struct nds_spi_slave *ns,
 			tran_len = min((size_t)data_len, (size_t)max_tran_len);
 			ns->tran_len = tran_len;
 			num_blks = DIV_ROUND_UP(tran_len , CHUNK_SIZE);
-			num_bytes = (tran_len) % CHUNK_SIZE;
 			timeout = SPI_TIMEOUT;
-			if(num_bytes == 0)
-				num_bytes = CHUNK_SIZE;
 			__atcspi200_spi_start(ns);
 
 			while (num_blks && (timeout--)) {
@@ -260,15 +267,16 @@ static int __atcspi200_spi_xfer(struct nds_spi_slave *ns,
 					dout += CHUNK_SIZE;
 				}
 
-				if ((event & RXFVE_MASK) && (data_in)) {
-					rf_cnt = ((event & RXFVE_MASK)>> RXFVE_OFFSET);
-					if (rf_cnt >= CHUNK_SIZE)
-						rx_bytes = CHUNK_SIZE;
-					else if (num_blks == 1 && rf_cnt == num_bytes)
-						rx_bytes = num_bytes;
-					else
-						continue;
-
+				/*
+				 * RX FIFO not empty.  Not the RXNUM count: its
+				 * 5-bit field (RXFVE_MASK) reads 0 at 32, 64, 96
+				 * and 128 entries of a 128-entry FIFO, and the
+				 * controller holds SCLK while the FIFO is full, so
+				 * a full FIFO deadlocked the transfer until the
+				 * timeout (whenever SCLK outran this loop).
+				 */
+				if (!(event & RXFEM) && (data_in)) {
+					rx_bytes = CHUNK_SIZE;
 					if (__nspi_espi_rx(ns, din, rx_bytes) == rx_bytes) {
 						num_blks -= CHUNK_SIZE;
 						din = (unsigned char *)din + rx_bytes;
@@ -284,9 +292,19 @@ static int __atcspi200_spi_xfer(struct nds_spi_slave *ns,
 			data_len -= tran_len;
 			if(data_len)
 			{
-				ns->cmd_buf[1] += ((tran_len>>16)&0xff);
-				ns->cmd_buf[2] += ((tran_len>>8)&0xff);
-				ns->cmd_buf[3] += ((tran_len)&0xff);
+				/*
+				 * The next chunk is a new command at the next
+				 * address (3 address bytes after the opcode).  As
+				 * a number: adding byte by byte lost the carries,
+				 * so reads wrapped at every 64 KB boundary.
+				 */
+				u32 addr = (ns->cmd_buf[1] << 16) |
+					   (ns->cmd_buf[2] << 8) | ns->cmd_buf[3];
+
+				addr += tran_len;
+				ns->cmd_buf[1] = (addr >> 16) & 0xff;
+				ns->cmd_buf[2] = (addr >> 8) & 0xff;
+				ns->cmd_buf[3] = addr & 0xff;
 				ns->data_len = data_len;
 			}
 			ret = __atcspi200_spi_stop(ns);
